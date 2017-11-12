@@ -9,13 +9,13 @@ namespace SmartSavingContract
     public class SmartSavingContract : SmartContract
     {
 
-        private static readonly byte[] NEO = { 0x01 };
+        private static readonly byte[] NEO = { 155, 124, 255, 218, 166, 116, 190, 174, 15, 147, 14, 190, 96, 133, 175, 144, 147, 229, 254, 86, 179, 74, 92, 34, 12, 205, 207, 110, 252, 51, 111, 197 };
 
-        private static readonly byte[] NEO_GAS = { 0x02 };
+        private static readonly byte[] NEO_GAS = { 0xe7  };
 
         private static readonly byte[] DURATION = { 0x03 };
 
-        public static object Main(string operation, string name, BigInteger duration)
+        public static object Main(string operation, params object[] args)
         {
             Runtime.Log("operation: "+operation);
             switch (operation)
@@ -27,7 +27,7 @@ namespace SmartSavingContract
                 case "createSavings":
                     {
                         Runtime.Log("createSavings command!");
-                        return CreateSavings(name, duration);
+                        return CreateSavings((string) args[0],((byte[])args[1]).AsBigInteger());
                     }
                 //Returns json array of savings ids of all savings binded to caller address
                 case "getAllSavings":
@@ -40,7 +40,7 @@ namespace SmartSavingContract
                 case "getSavingsByName":
                     {
                         Runtime.Log("getSavingsByName command!");
-                        return GetSavingsByName(name);
+                        return GetSavingsByName((string)args[0]);
                     }
                 //This method requires attached neo or gas which will be recorded os savings id
                 //Both server(for reocurring payments) and client(for single non-planned payments)
@@ -48,7 +48,8 @@ namespace SmartSavingContract
                 //arg0 should be savingsId
                 case "transfer":
                     {
-                        return false;
+                        Runtime.Log("transfer command!");
+                        return Transfer((string)args[0]);
                     }
                 //This method only deletes savings data!
                 //If current timestamp is greater than savings duration all assets will be transfered to
@@ -130,6 +131,19 @@ namespace SmartSavingContract
             savings += duration;
             savings += "}";
             return savings;
+        }
+
+        public static bool Transfer(string name, byte[] owner)
+        {
+            BigInteger neoBalance = GetNeoBalance(owner, name);
+            BigInteger neoContribution = GetNeoContributionValue();
+            neoBalance = neoBalance + neoContribution;
+            StoreNeoBalance(owner, name, neoBalance);
+            BigInteger neoGasBalance = GetNeoBalance(owner, name);
+            BigInteger neoGasContribution = GetNeoContributionValue();
+            neoGasBalance = neoGasBalance + neoGasContribution;
+            StoreNeoGasBalance(owner, name, neoGasBalance);
+            return true;
         }
 
         /**
@@ -214,6 +228,52 @@ namespace SmartSavingContract
             TransactionOutput firstReference = reference[0];
             Runtime.Log("first reference");
             return firstReference.ScriptHash;
+        }
+
+        private static ulong GetNeoContributionValue()
+        {
+            Transaction tx = (Transaction)ExecutionEngine.ScriptContainer;
+            TransactionOutput[] outputs = tx.GetOutputs();
+            ulong value = 0;
+            foreach (TransactionOutput output in outputs)
+            {
+                if (output.ScriptHash == GetReceiver() && output.AssetId == NEO)
+                {
+                    value += (ulong)output.Value;
+                }
+                else
+                {
+                    Runtime.Log("Asset id: ");
+                    Runtime.Log(Helper.AsString(output.AssetId));
+                }
+            }
+            return value;
+        }
+
+        private static ulong GetNeoGasContributionValue()
+        {
+            Transaction tx = (Transaction)ExecutionEngine.ScriptContainer;
+            TransactionOutput[] outputs = tx.GetOutputs();
+            ulong value = 0;
+            foreach (TransactionOutput output in outputs)
+            {
+                if (output.ScriptHash == GetReceiver() && output.AssetId != NEO)
+                {
+                    value += (ulong)output.Value;
+                }
+                else
+                {
+                    Runtime.Log("Asset id: ");
+                    Runtime.Log(Helper.AsString(output.AssetId));
+                }
+            }
+            return value;
+        }
+
+        // get smart contract script hash
+        private static byte[] GetReceiver()
+        {
+            return ExecutionEngine.ExecutingScriptHash;
         }
 
         private static bool ArrayContains(string[] array, string needle)
