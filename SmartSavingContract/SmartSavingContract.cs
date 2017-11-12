@@ -18,7 +18,6 @@ namespace SmartSavingContract
         public static object Main(string operation, string name, BigInteger duration)
         {
             Runtime.Log("operation: "+operation);
-            Runtime.Log(operation);
             switch (operation)
             {
                 //This operation serves for creating new savings with zero balances.
@@ -33,13 +32,15 @@ namespace SmartSavingContract
                 //Returns json array of savings ids of all savings binded to caller address
                 case "getAllSavings":
                     {
+                        Runtime.Log("getAllSavings command!");
                         return GetAllSavings();
                     }
                 //Returns json object with savings details.
                 //Arg0 should be savingsId
-                case "getSavings":
+                case "getSavingsByName":
                     {
-                        return null;
+                        Runtime.Log("getSavingsByName command!");
+                        return GetSavingsByName(name);
                     }
                 //This method requires attached neo or gas which will be recorded os savings id
                 //Both server(for reocurring payments) and client(for single non-planned payments)
@@ -95,19 +96,34 @@ namespace SmartSavingContract
             return true;
         }
 
-        public static string GetSavingsByName(string name)
-        {
-            return null;
-        }
-
         public static string GetAllSavings()
         {
             byte[] sender = ExecutionEngine.CallingScriptHash;
             byte[] content = Storage.Get(Storage.CurrentContext, sender);
-            if (content != null) {
+            if (content != null)
+            {
                 return Helper.AsString(content);
             }
             return null;
+        }
+
+        public static string GetSavingsByName(string name)
+        {
+            Runtime.Log("serializing savings to json");
+            string savings = "{";
+            savings += "\"name\":\"";
+            savings += name;
+            savings+= "\",";
+            savings += "\"neo\":";
+            savings += "0";
+            savings += ",";
+            savings += "\"gas\":";
+            savings += "0";
+            savings += ",";
+            savings += "\"duration\":";
+            savings += "0";
+            savings += "}";
+            return savings;
         }
 
         /**
