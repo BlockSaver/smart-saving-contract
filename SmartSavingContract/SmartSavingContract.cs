@@ -15,7 +15,7 @@ namespace SmartSavingContract
 
         private static readonly byte[] DURATION = { 0x03 };
 
-        public static object Main(string operation, params object[] args)
+        public static object Main(string operation, string name, BigInteger duration)
         {
             switch (operation)
             {
@@ -26,10 +26,6 @@ namespace SmartSavingContract
                 case "createSavings":
                     {
                         Runtime.Log("createSavings command!");
-                        string name = (string) args[0];
-                        Runtime.Log("name");
-                        BigInteger duration = (BigInteger)args[1];
-                        Runtime.Log("duration");
                         return CreateSavings(name, duration);
                     }
                 //Returns json array of savings ids of all savings binded to caller address
@@ -71,12 +67,20 @@ namespace SmartSavingContract
         {
             Runtime.Log("Creating new savings...");
             BigInteger zero = 0;
-            byte[] sender = GetSender();
+            Runtime.Log("integer init");
+            byte[] sender = ExecutionEngine.CallingScriptHash;
+            Runtime.Log("sender obtained");
             if (GetSavingsByName(name) != null) {
                 Runtime.Log("Savings with that name and awner already exists!");
                 return false;
             }
+            Runtime.Log("Savings with that name does not exists");
             string savings = GetAllSavings();
+            if (savings != null) {
+                Runtime.Log("all savings:");
+                Runtime.Log(savings);
+                savings += ",";
+            }
             savings += name;
             Storage.Put(Storage.CurrentContext, sender, savings);
             StoreNeoBalance(sender, name, zero);
@@ -129,9 +133,13 @@ namespace SmartSavingContract
         //Get the sender's public key
         private static byte[] GetSender()
         {
+            Runtime.Log("Fetching transaction");
             Transaction tx = (Transaction) ExecutionEngine.ScriptContainer;
+            Runtime.Log("Fetched transaction");
             TransactionOutput[] reference = tx.GetReferences();
+            Runtime.Log("reference");
             TransactionOutput firstReference = reference[0];
+            Runtime.Log("first reference");
             return firstReference.ScriptHash;
         }
 
