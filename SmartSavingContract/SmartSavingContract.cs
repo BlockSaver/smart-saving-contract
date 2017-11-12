@@ -17,6 +17,8 @@ namespace SmartSavingContract
 
         public static object Main(string operation, string name, BigInteger duration)
         {
+            Runtime.Log("operation: "+operation);
+            Runtime.Log(operation);
             switch (operation)
             {
                 //This operation serves for creating new savings with zero balances.
@@ -31,7 +33,7 @@ namespace SmartSavingContract
                 //Returns json array of savings ids of all savings binded to caller address
                 case "getAllSavings":
                     {
-                        return "[]";
+                        return GetAllSavings();
                     }
                 //Returns json object with savings details.
                 //Arg0 should be savingsId
@@ -76,12 +78,16 @@ namespace SmartSavingContract
             }
             Runtime.Log("Savings with that name does not exists");
             string savings = GetAllSavings();
-            if (savings != null) {
+            if (savings != null)
+            {
                 Runtime.Log("all savings:");
                 Runtime.Log(savings);
                 savings += ",";
+                savings += name;
             }
-            savings += name;
+            else {
+                savings = name;
+            }
             Storage.Put(Storage.CurrentContext, sender, savings);
             StoreNeoBalance(sender, name, zero);
             StoreNeoGasBalance(sender, name, zero);
@@ -96,6 +102,11 @@ namespace SmartSavingContract
 
         public static string GetAllSavings()
         {
+            byte[] sender = ExecutionEngine.CallingScriptHash;
+            byte[] content = Storage.Get(Storage.CurrentContext, sender);
+            if (content != null) {
+                return Helper.AsString(content);
+            }
             return null;
         }
 
