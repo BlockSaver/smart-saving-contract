@@ -110,18 +110,24 @@ namespace SmartSavingContract
         public static string GetSavingsByName(string name)
         {
             Runtime.Log("serializing savings to json");
+            byte[] sender = ExecutionEngine.CallingScriptHash;
+            BigInteger duration = GetDuration(sender, name);
+            if (duration == 0) return null;
             string savings = "{";
             savings += "\"name\":\"";
             savings += name;
             savings+= "\",";
             savings += "\"neo\":";
-            savings += "0";
+            Runtime.Log("fetching neo balance");
+            savings += GetNeoBalance(sender, name);
             savings += ",";
             savings += "\"gas\":";
-            savings += "0";
+            Runtime.Log("fetching gas balance");
+            savings += GetNeoGasBalance(sender, name);
             savings += ",";
             savings += "\"duration\":";
-            savings += "0";
+            Runtime.Log("fetching duration");
+            savings += duration;
             savings += "}";
             return savings;
         }
@@ -144,6 +150,35 @@ namespace SmartSavingContract
             StoreData(sender, name, DURATION, value.AsByteArray());
         }
 
+        private static BigInteger GetNeoBalance(byte[] sender, string name)
+        {
+            byte[] data = GetData(sender, name, NEO);
+            if (data == null) {
+                return 0;
+            }
+            return data.AsBigInteger();
+        }
+
+        private static BigInteger GetNeoGasBalance(byte[] sender, string name)
+        {
+            byte[] data = GetData(sender, name, NEO_GAS);
+            if (data == null)
+            {
+                return 0;
+            }
+            return data.AsBigInteger();
+        }
+
+        private static BigInteger GetDuration(byte[] sender, string name)
+        {
+            byte[] data = GetData(sender, name, DURATION);
+            if (data == null)
+            {
+                return 0;
+            }
+            return data.AsBigInteger();
+        }
+
         private static void StoreData(byte[] sender, string name, byte[] assetId, byte[] data)
         {
             Storage.Put(
@@ -153,6 +188,17 @@ namespace SmartSavingContract
                     assetId
                     ),
                 data
+                );
+        }
+
+        private static byte[] GetData(byte[] sender, string name, byte[] assetId)
+        {
+            return Storage.Get(
+                Storage.CurrentContext,
+                Helper.Concat(
+                    Helper.Concat(sender, Helper.AsByteArray(name)),
+                    assetId
+                    )
                 );
         }
 
