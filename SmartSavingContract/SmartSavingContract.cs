@@ -1,5 +1,6 @@
 ﻿using Neo.SmartContract.Framework;
 using Neo.SmartContract.Framework.Services.Neo;
+using Neo.SmartContract.Framework.Services.System;
 using System;
 using System.Numerics;
 
@@ -7,6 +8,13 @@ namespace SmartSavingContract
 {
     public class SmartSavingContract : SmartContract
     {
+
+        private static readonly byte[] NEO = { 0x01 };
+
+        private static readonly byte[] NEO_GAS = { 0x02 };
+
+        private static readonly byte[] DURATION = { 0x03 };
+
         public static object Main(string operation, params object[] args)
         {
             switch (operation)
@@ -14,9 +22,15 @@ namespace SmartSavingContract
                 //This operation serves for creating new savings with zero balances.
                 //It should receive name(string) as arg0 and duration(integer) as arg1.
                 //Duration should be unix timestamp after which can savings be closed freely
+                //It will return true is savings is created successfully, false otherwise
                 case "createSavings":
                     {
-                        return "savingsId";
+                        Runtime.Log("createSavings command!");
+                        string name = (string) args[0];
+                        Runtime.Log("name");
+                        BigInteger duration = (BigInteger)args[1];
+                        Runtime.Log("duration");
+                        return CreateSavings(name, duration);
                     }
                 //Returns json array of savings ids of all savings binded to caller address
                 case "getAllSavings":
@@ -47,6 +61,88 @@ namespace SmartSavingContract
                     }
             }
             return "unknown command";
+        }
+
+        /**
+         * Operations
+         * */
+
+        public static bool CreateSavings(string name, BigInteger duration)
+        {
+            Runtime.Log("Creating new savings...");
+            BigInteger zero = 0;
+            byte[] sender = GetSender();
+            if (GetSavingsByName(name) != null) {
+                Runtime.Log("Savings with that name and awner already exists!");
+                return false;
+            }
+            string savings = GetAllSavings();
+            savings += name;
+            Storage.Put(Storage.CurrentContext, sender, savings);
+            StoreNeoBalance(sender, name, zero);
+            StoreNeoGasBalance(sender, name, zero);
+            StoreDuration(sender, name, duration);
+            return true;
+        }
+
+        public static string GetSavingsByName(string name)
+        {
+            return null;
+        }
+
+        public static string GetAllSavings()
+        {
+            return null;
+        }
+
+        /**
+         * Utility methods
+         * */
+        private static void StoreNeoBalance(byte[] sender, string name, BigInteger value)
+        {
+            StoreData(sender, name, NEO, value.AsByteArray());
+        }
+
+        private static void StoreNeoGasBalance(byte[] sender, string name, BigInteger value)
+        {
+            StoreData(sender, name, NEO_GAS, value.AsByteArray());
+        }
+
+        private static void StoreDuration(byte[] sender, string name, BigInteger value)
+        {
+            StoreData(sender, name, DURATION, value.AsByteArray());
+        }
+
+        private static void StoreData(byte[] sender, string name, byte[] assetId, byte[] data)
+        {
+            Storage.Put(
+                Storage.CurrentContext,
+                Helper.Concat(
+                    Helper.Concat(sender, Helper.AsByteArray(name)),
+                    assetId
+                    ),
+                data
+                );
+        }
+
+
+        //Get the sender's public key
+        private static byte[] GetSender()
+        {
+            Transaction tx = (Transaction) ExecutionEngine.ScriptContainer;
+            TransactionOutput[] reference = tx.GetReferences();
+            TransactionOutput firstReference = reference[0];
+            return firstReference.ScriptHash;
+        }
+
+        private static bool ArrayContains(string[] array, string needle)
+        {
+            foreach (string i in array) {
+                if (i.Equals(needle)) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }
