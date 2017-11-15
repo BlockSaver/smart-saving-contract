@@ -49,7 +49,7 @@ namespace SmartSavingContract
                 case "transfer":
                     {
                         Runtime.Log("transfer command!");
-                        return Transfer((string)args[0]);
+                        return Transfer((string)args[0], (byte[]) args[1]);
                     }
                 //This method only deletes savings data!
                 //If current timestamp is greater than savings duration all assets will be transfered to
