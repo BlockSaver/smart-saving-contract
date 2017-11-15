@@ -6,6 +6,21 @@
 
 ## Testing
 
+Neo-python commands for contract invoking:
+
+//create
+`testInvoke 20dd61645c511e8e1d5c12a722a65db7420ed798 "637265617465536176696e6773" [“6c6f6f70”,1510488386]`
+
+//all savings
+`testInvoke 20dd61645c511e8e1d5c12a722a65db7420ed798 "676574416c6c536176696e6773" []`
+
+//savings details
+`testInvoke 20dd61645c511e8e1d5c12a722a65db7420ed798 "676574536176696e677342794e616d65" [“6c6f6f70”]`
+
+//transfer
+`testInvoke 20dd61645c511e8e1d5c12a722a65db7420ed798 "7472616e73666572" 74657374c 1510488386 --attach-neo=1 --attach-gas=1`
+
+
 ### Private Network
 ```json
 {
