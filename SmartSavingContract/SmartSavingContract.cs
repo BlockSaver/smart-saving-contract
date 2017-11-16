@@ -10,10 +10,16 @@ namespace SmartSavingContract
     public class SmartSavingContract : SmartContract
     {
 
+        //neo asset id
         private static readonly byte[] NEO = { 155, 124, 255, 218, 166, 116, 190, 174, 15, 147, 14, 190, 96, 133, 175, 144, 147, 229, 254, 86, 179, 74, 92, 34, 12, 205, 207, 110, 252, 51, 111, 197 };
 
-        private static readonly byte[] NEO_GAS = { 223 };
+        //neo gas id
+        private static readonly byte[] NEO_GAS = { 231, 45, 40, 105, 121, 238, 108, 177, 183, 230, 93, 253, 223, 178, 227, 132, 16, 11, 141, 20, 142, 119, 88, 222, 66, 228, 22, 139, 113, 121, 44, 96 };
 
+        //contract owner public key
+        private static readonly byte[] CONTRACT_OWNER = { 108, 134, 156, 63, 118, 253, 80, 65, 30, 70, 152, 182, 20, 222, 126, 201, 17, 14, 146, 101, 170, 211, 90, 227, 16, 54, 140, 24, 115, 6, 78, 148, 2 };
+
+        //savings duration id
         private static readonly byte[] DURATION = { 0x03 };
 
         public static object Main(string operation, params object[] args)
@@ -151,6 +157,20 @@ namespace SmartSavingContract
             return true;
         }
 
+        public static bool CloseSavings(byte[] savingsOwner, string name, byte[] signature)
+        {
+            //this is commented out because we aren't really sure how to generate signature in neo-gui
+            //we also realize that currently this is security flaw
+            //if (!VerifySignature(signature, CONTRACT_OWNER)) return false;
+            string savings = GetAllSavings(savingsOwner);
+            byte[] newSavings = RemoveFromArray(savings.AsByteArray(), name);
+            Storage.Put(Storage.CurrentContext, savingsOwner, newSavings);
+            StoreNeoBalance(savingsOwner, name, 0);
+            StoreNeoGasBalance(savingsOwner, name, 0);
+            StoreDuration(savingsOwner, name, 0);
+            return true;
+        }
+
         /**
          * Utility methods
          * */
@@ -237,32 +257,22 @@ namespace SmartSavingContract
 
         private static ulong GetNeoContributionValue()
         {
-            Transaction tx = (Transaction)ExecutionEngine.ScriptContainer;
-            TransactionOutput[] outputs = tx.GetOutputs();
-            ulong value = 0;
-            foreach (TransactionOutput output in outputs)
-            {
-                if (output.ScriptHash == GetReceiver() && output.AssetId == NEO)
-                {
-                    value += (ulong)output.Value;
-                }
-                else
-                {
-                    Runtime.Log("Asset id: ");
-                    Runtime.Log(Helper.AsString(output.AssetId));
-                }
-            }
-            return value;
+            return GetAssetContribution(NEO);
         }
 
         private static ulong GetNeoGasContributionValue()
+        {
+            return GetAssetContribution(NEO_GAS);
+        }
+
+        private static ulong GetAssetContribution(byte[] assetId)
         {
             Transaction tx = (Transaction)ExecutionEngine.ScriptContainer;
             TransactionOutput[] outputs = tx.GetOutputs();
             ulong value = 0;
             foreach (TransactionOutput output in outputs)
             {
-                if (output.ScriptHash == GetReceiver() && output.AssetId != NEO)
+                if (output.ScriptHash == GetReceiver() && output.AssetId == assetId)
                 {
                     value += (ulong)output.Value;
                 }
@@ -279,6 +289,30 @@ namespace SmartSavingContract
         private static byte[] GetReceiver()
         {
             return ExecutionEngine.ExecutingScriptHash;
+        }
+
+        private static byte[] RemoveFromArray(byte[] source, string needle) {
+            string needle2 = needle + ",";
+            byte[] pattern = needle.AsByteArray();
+            byte[] pattern2 = needle2.AsByteArray();
+            byte[] result = new byte[0];
+            for (int i = 0; i < source.Length; i++) {
+                byte[] part = Helper.Range(source, i, pattern2.Length);
+                if (part.Equals(pattern2)) {
+                    result = Helper.Concat(result, takeTillEnd(source, pattern2.Length - 1));
+                }
+                part = Helper.Range(source, i, pattern.Length);
+                if (part.Equals(pattern))
+                {
+                    result = Helper.Concat(result, takeTillEnd(source, pattern.Length - 1));
+                }
+                result = Helper.Concat(result, new byte[] { source[i] });
+            }
+            return source;
+        }
+
+        private static byte[] takeTillEnd(byte[] source, int index) {
+            return Helper.Range(source, index, source.Length - index);
         }
 
         private static bool ArrayContains(string[] array, string needle)
