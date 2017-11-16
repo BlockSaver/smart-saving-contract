@@ -251,28 +251,9 @@ namespace SmartSavingContract
                 );
         }
 
-
-        //Get the sender's public key
-        private static byte[] GetSender()
-        {
-            Runtime.Log("Fetching transaction");
-            Transaction tx = (Transaction) ExecutionEngine.ScriptContainer;
-            Runtime.Log("Fetched transaction");
-            TransactionOutput[] reference = tx.GetReferences();
-            Runtime.Log("reference");
-            TransactionOutput firstReference = reference[0];
-            Runtime.Log("first reference");
-            return firstReference.ScriptHash;
-        }
-
         private static ulong GetNeoContributionValue()
         {
             return GetAssetContribution(NEO);
-        }
-
-        private static ulong GetNeoGasContributionValue()
-        {
-            return GetAssetContribution(NEO_GAS);
         }
 
         private static ulong GetAssetContribution(byte[] assetId)
