@@ -71,7 +71,6 @@ namespace SmartSavingContract
         public static bool CreateSavings(byte[] owner, string name, BigInteger duration)
         {
             Runtime.Log("Creating new savings...");
-            if (!Runtime.CheckWitness(owner)) return false;
             BigInteger zero = 0;
             Runtime.Log("sender obtained");
             if (GetSavingsByName(owner, name) != null) {
@@ -99,7 +98,6 @@ namespace SmartSavingContract
 
         public static string GetAllSavings(byte[] owner)
         {
-            if (!Runtime.CheckWitness(owner)) return null;
             byte[] content = Storage.Get(Storage.CurrentContext, owner);
             if (content != null)
             {
@@ -111,7 +109,6 @@ namespace SmartSavingContract
         public static string GetSavingsByName(byte[] owner, string name)
         {
             Runtime.Log("getting savings in json");
-            if (!Runtime.CheckWitness(owner)) return null;
             BigInteger duration = GetDuration(owner, name);
             if (duration == 0) return null;
             string savings = "{";
@@ -143,7 +140,6 @@ namespace SmartSavingContract
 
         public static bool Transfer(byte[] owner, string name)
         {
-            if (!Runtime.CheckWitness(owner)) return false;
             BigInteger neoBalance = GetNeoBalance(owner, name);
             BigInteger neoContribution = GetNeoContributionValue();
             neoBalance = neoBalance + neoContribution;
