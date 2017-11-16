@@ -64,7 +64,8 @@ namespace SmartSavingContract
                 //Only server with contract owner address can close savings
                 case "closeSavings":
                     {
-                        return false;
+                        Runtime.Log("closeSavings command!");
+                        return CloseSavings((byte[])args[0], (string)args[1], (byte[]) args[2]);
                     }
             }
             return "unknown command";
@@ -107,7 +108,9 @@ namespace SmartSavingContract
             byte[] content = Storage.Get(Storage.CurrentContext, owner);
             if (content != null)
             {
-                return Helper.AsString(content);
+                string savings = Helper.AsString(content);
+                Runtime.Log("Savings: " + savings);
+                return savings;
             }
             return null;
         }
@@ -162,12 +165,19 @@ namespace SmartSavingContract
             //this is commented out because we aren't really sure how to generate signature in neo-gui
             //we also realize that currently this is security flaw
             //if (!VerifySignature(signature, CONTRACT_OWNER)) return false;
+            Runtime.Log("Closing savings ->" + name + "...");
             string savings = GetAllSavings(savingsOwner);
+            Runtime.Log("Current savings" + savings);
             byte[] newSavings = RemoveFromArray(savings.AsByteArray(), name);
+            Runtime.Log("Removed from savings list");
             Storage.Put(Storage.CurrentContext, savingsOwner, newSavings);
+            Runtime.Log("Stored new savings list");
             StoreNeoBalance(savingsOwner, name, 0);
+            Runtime.Log("Stored new neo balance");
             StoreNeoGasBalance(savingsOwner, name, 0);
+            Runtime.Log("Stored new neo gas balance");
             StoreDuration(savingsOwner, name, 0);
+            Runtime.Log("Stored new duration");
             return true;
         }
 
@@ -292,6 +302,9 @@ namespace SmartSavingContract
         }
 
         private static byte[] RemoveFromArray(byte[] source, string needle) {
+            if (source.Equals(needle.AsByteArray())) {
+                return null;
+            }
             string needle2 = needle + ",";
             byte[] pattern = needle.AsByteArray();
             byte[] pattern2 = needle2.AsByteArray();
@@ -299,16 +312,18 @@ namespace SmartSavingContract
             for (int i = 0; i < source.Length; i++) {
                 byte[] part = Helper.Range(source, i, pattern2.Length);
                 if (part.Equals(pattern2)) {
-                    result = Helper.Concat(result, takeTillEnd(source, pattern2.Length - 1));
+                    result = Helper.Concat(result, takeTillEnd(source, i + pattern2.Length));
+                    return result;
                 }
                 part = Helper.Range(source, i, pattern.Length);
                 if (part.Equals(pattern))
                 {
-                    result = Helper.Concat(result, takeTillEnd(source, pattern.Length - 1));
+                    result = Helper.Concat(result, takeTillEnd(source, i + pattern.Length));
+                    return result;
                 }
                 result = Helper.Concat(result, new byte[] { source[i] });
             }
-            return source;
+            return result;
         }
 
         private static byte[] takeTillEnd(byte[] source, int index) {
