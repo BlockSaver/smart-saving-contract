@@ -3,6 +3,7 @@ using Neo.SmartContract.Framework.Services.Neo;
 using Neo.SmartContract.Framework.Services.System;
 using System;
 using System.Numerics;
+using System.Text;
 
 namespace SmartSavingContract
 {
@@ -11,7 +12,7 @@ namespace SmartSavingContract
 
         private static readonly byte[] NEO = { 155, 124, 255, 218, 166, 116, 190, 174, 15, 147, 14, 190, 96, 133, 175, 144, 147, 229, 254, 86, 179, 74, 92, 34, 12, 205, 207, 110, 252, 51, 111, 197 };
 
-        private static readonly byte[] NEO_GAS = { 0xe7  };
+        private static readonly byte[] NEO_GAS = { 223 };
 
         private static readonly byte[] DURATION = { 0x03 };
 
@@ -27,20 +28,20 @@ namespace SmartSavingContract
                 case "createSavings":
                     {
                         Runtime.Log("createSavings command!");
-                        return CreateSavings((string) args[0],((byte[])args[1]).AsBigInteger());
+                        return CreateSavings((byte[]) args[0], (string) args[1],((byte[])args[2]).AsBigInteger());
                     }
                 //Returns json array of savings ids of all savings binded to caller address
                 case "getAllSavings":
                     {
                         Runtime.Log("getAllSavings command!");
-                        return GetAllSavings();
+                        return GetAllSavings((byte[])args[0]);
                     }
                 //Returns json object with savings details.
                 //Arg0 should be savingsId
                 case "getSavingsByName":
                     {
                         Runtime.Log("getSavingsByName command!");
-                        return GetSavingsByName((string)args[0]);
+                        return GetSavingsByName((byte[])args[0], (string)args[1]);
                     }
                 //This method requires attached neo or gas which will be recorded os savings id
                 //Both server(for reocurring payments) and client(for single non-planned payments)
@@ -49,7 +50,7 @@ namespace SmartSavingContract
                 case "transfer":
                     {
                         Runtime.Log("transfer command!");
-                        return Transfer((string)args[0], (byte[]) args[1]);
+                        return Transfer((byte[])args[0], (string) args[1]);
                     }
                 //This method only deletes savings data!
                 //If current timestamp is greater than savings duration all assets will be transfered to
@@ -67,19 +68,17 @@ namespace SmartSavingContract
          * Operations
          * */
 
-        public static bool CreateSavings(string name, BigInteger duration)
+        public static bool CreateSavings(byte[] owner, string name, BigInteger duration)
         {
             Runtime.Log("Creating new savings...");
             BigInteger zero = 0;
-            Runtime.Log("integer init");
-            byte[] sender = ExecutionEngine.CallingScriptHash;
             Runtime.Log("sender obtained");
-            if (GetSavingsByName(name) != null) {
+            if (GetSavingsByName(owner, name) != null) {
                 Runtime.Log("Savings with that name and awner already exists!");
                 return false;
             }
             Runtime.Log("Savings with that name does not exists");
-            string savings = GetAllSavings();
+            string savings = GetAllSavings(owner);
             if (savings != null)
             {
                 Runtime.Log("all savings:");
@@ -90,17 +89,16 @@ namespace SmartSavingContract
             else {
                 savings = name;
             }
-            Storage.Put(Storage.CurrentContext, sender, savings);
-            StoreNeoBalance(sender, name, zero);
-            StoreNeoGasBalance(sender, name, zero);
-            StoreDuration(sender, name, duration);
+            Storage.Put(Storage.CurrentContext, owner, savings);
+            StoreNeoBalance(owner, name, zero);
+            StoreNeoGasBalance(owner, name, zero);
+            StoreDuration(owner, name, duration);
             return true;
         }
 
-        public static string GetAllSavings()
+        public static string GetAllSavings(byte[] owner)
         {
-            byte[] sender = ExecutionEngine.CallingScriptHash;
-            byte[] content = Storage.Get(Storage.CurrentContext, sender);
+            byte[] content = Storage.Get(Storage.CurrentContext, owner);
             if (content != null)
             {
                 return Helper.AsString(content);
@@ -108,11 +106,10 @@ namespace SmartSavingContract
             return null;
         }
 
-        public static string GetSavingsByName(string name)
+        public static string GetSavingsByName(byte[] owner, string name)
         {
             Runtime.Log("serializing savings to json");
-            byte[] sender = ExecutionEngine.CallingScriptHash;
-            BigInteger duration = GetDuration(sender, name);
+            BigInteger duration = GetDuration(owner, name);
             if (duration == 0) return null;
             string savings = "{";
             savings += "\"name\":\"";
@@ -120,20 +117,28 @@ namespace SmartSavingContract
             savings+= "\",";
             savings += "\"neo\":";
             Runtime.Log("fetching neo balance");
-            savings += GetNeoBalance(sender, name);
+            BigInteger neoBalance = GetNeoBalance(owner, name);
+            Runtime.Notify(neoBalance + 1);
+            savings += neoBalance;
             savings += ",";
             savings += "\"gas\":";
             Runtime.Log("fetching gas balance");
-            savings += GetNeoGasBalance(sender, name);
+            BigInteger neoGasBalance = GetNeoGasBalance(owner, name);
+            Runtime.Notify(neoGasBalance + 1);
+            Runtime.Log("gas: "+Helper.AsString(neoGasBalance.ToByteArray()));
+            savings += neoGasBalance;
             savings += ",";
             savings += "\"duration\":";
             Runtime.Log("fetching duration");
             savings += duration;
-            savings += "}";
+            savings += ",";
+            savings += "\"name\":\"";
+            savings += Helper.AsString(owner);
+            savings += "\"}";
             return savings;
         }
 
-        public static bool Transfer(string name, byte[] owner)
+        public static bool Transfer(byte[] owner, string name)
         {
             BigInteger neoBalance = GetNeoBalance(owner, name);
             BigInteger neoContribution = GetNeoContributionValue();
